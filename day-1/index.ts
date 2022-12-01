@@ -44,7 +44,7 @@ const getNumberOfTop = (top: number) =>
             (acc, item) => acc.concat(gte(num, item) ? [num, item] : [item]),
             []
           ),
-          take<number>(3)
+          take<number>(top)
         )
       )(acc),
     []
