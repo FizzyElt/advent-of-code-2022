@@ -23,7 +23,7 @@ pipe(
   TE.map(A.map(flow(parseArrayStrToNum, sum))),
   TE.map(maxOfNumArray),
   TE.match(
-    (err) => console.log('use got some error', err),
+    (err) => console.log('you got some error', err),
     (res) => console.log('answer is', res)
   )
 )();
