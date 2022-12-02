@@ -1,18 +1,12 @@
-import * as fs from 'fs/promises';
 import * as TE from 'fp-ts/TaskEither';
 import * as A from 'fp-ts/Array';
 import { flow, pipe } from 'fp-ts/function';
+import { getDataContent } from '../utils/readFileTask';
 
 import { cond, equals, always, where, split, trim, sum } from 'ramda';
 
 type RPS = 'Rock' | 'Paper' | 'Scissors';
 type GameStatus = 'Win' | 'Lose' | 'Draw';
-
-const getDataContent = (filePath: string): TE.TaskEither<Error, string> =>
-  TE.tryCatch(
-    () => fs.readFile(filePath, 'utf8'),
-    (err) => new Error(`${err}`)
-  );
 
 const formatRPS = (value: string): RPS => {
   if (equals(value, 'A') || equals(value, 'X')) return 'Rock';

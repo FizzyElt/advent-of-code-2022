@@ -1,30 +1,10 @@
-import * as fs from 'fs/promises';
 import * as TE from 'fp-ts/TaskEither';
 import * as A from 'fp-ts/Array';
 import { flow, pipe } from 'fp-ts/function';
 
-import {
-  sum,
-  split,
-  trim,
-  sort,
-  slice,
-  reduce,
-  cond,
-  T,
-  equals,
-  ifElse,
-  append,
-  gte,
-  propEq,
-  take,
-} from 'ramda';
+import { getDataContent } from '../utils/readFileTask';
 
-const getDataContent = (filePath: string): TE.TaskEither<Error, string> =>
-  TE.tryCatch(
-    () => fs.readFile(filePath, 'utf8'),
-    (err) => new Error(`${err}`)
-  );
+import { sum, split, trim, reduce, ifElse, gte, propEq, take } from 'ramda';
 
 const sliceContent = flow(split('\n\n'), A.map(flow(trim, split('\n'))));
 
