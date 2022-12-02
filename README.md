@@ -9,3 +9,4 @@ Try to use functional programming to solve the problems
 
 ## Links
 - [day 1](./day-1/index.ts)
+- [day 2](./day-2/index.ts)
