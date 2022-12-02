@@ -6,7 +6,7 @@ import { getDataContent } from '../utils/readFileTask';
 import { cond, equals, always, where, split, trim, sum } from 'ramda';
 
 type RPS = 'Rock' | 'Paper' | 'Scissors';
-type GameStatus = 'Win' | 'Lose' | 'Draw';
+type GameOutcome = 'Win' | 'Lose' | 'Draw';
 
 const formatRPS = (value: string): RPS => {
   if (equals(value, 'A') || equals(value, 'X')) return 'Rock';
@@ -15,7 +15,7 @@ const formatRPS = (value: string): RPS => {
   throw Error('not match string');
 };
 
-const formatGameResult = (value: string): GameStatus => {
+const formatGameOutcome = (value: string): GameOutcome => {
   if (equals(value, 'X')) return 'Lose';
   if (equals(value, 'Y')) return 'Draw';
   if (equals(value, 'Z')) return 'Win';
@@ -36,11 +36,11 @@ const isWin = equals('Win');
 const isLose = equals('Lose');
 const isDraw = equals('Draw');
 
-const win = always<GameStatus>('Win');
-const lose = always<GameStatus>('Lose');
-const draw = always<GameStatus>('Draw');
+const win = always<GameOutcome>('Win');
+const lose = always<GameOutcome>('Lose');
+const draw = always<GameOutcome>('Draw');
 
-const getGameScore = cond<[GameStatus], number>([
+const getGameScore = cond<[GameOutcome], number>([
   [isWin, always(6)],
   [isLose, always(0)],
   [isDraw, always(3)],
@@ -52,7 +52,7 @@ const getTypeScore = cond<[RPS], number>([
   [isScissors, always(3)],
 ]);
 
-const getRightPlayerOutcome = ([left, right]: [RPS, RPS]): GameStatus =>
+const getRightPlayerOutcome = ([left, right]: [RPS, RPS]): GameOutcome =>
   cond([
     [where({ left: isRock, right: isRock }), draw],
     [where({ left: isRock, right: isPaper }), win],
@@ -67,8 +67,8 @@ const getRightPlayerOutcome = ([left, right]: [RPS, RPS]): GameStatus =>
     [where({ left: isScissors, right: isScissors }), draw],
   ])({ left, right });
 
-const getPlayerRPS = (rps: RPS, res: GameStatus): RPS =>
-  cond<[{ rps: RPS; res: GameStatus }], RPS>([
+const getPlayerRPS = (rps: RPS, res: GameOutcome): RPS =>
+  cond<[{ rps: RPS; res: GameOutcome }], RPS>([
     [where({ rps: isRock, res: isWin }), paper],
     [where({ rps: isRock, res: isLose }), scissors],
     [where({ rps: isRock, res: isDraw }), rock],
@@ -93,13 +93,13 @@ const part1Flow = flow(
 
 const part2Flow = flow(
   sliceContent,
-  A.map<Array<string>, [RPS, GameStatus]>(([left, right]) => [
+  A.map<Array<string>, [RPS, GameOutcome]>(([left, right]) => [
     formatRPS(left),
-    formatGameResult(right),
+    formatGameOutcome(right),
   ]),
   A.map(
-    ([opponentRPS, result]) =>
-      getGameScore(result) + getTypeScore(getPlayerRPS(opponentRPS, result))
+    ([opponentRPS, outcome]) =>
+      getGameScore(outcome) + getTypeScore(getPlayerRPS(opponentRPS, outcome))
   ),
   sum
 );
