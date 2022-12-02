@@ -30,9 +30,11 @@ const sliceContent = flow(split('\n\n'), A.map(flow(trim, split('\n'))));
 
 const parseArrayStrToNum = A.map(parseInt);
 
+const parse2DArrayStrToNum = A.map(parseArrayStrToNum);
+
 const maxOfNumArray = (list: Array<number>) => Math.max(...list);
 
-const getNumberOfTop = (top: number) =>
+const getFirstFewMaxElements = (top: number) =>
   reduce<number, Array<number>>(
     (acc, num) =>
       ifElse<[Array<number>], Array<number>, Array<number>>(
@@ -50,12 +52,14 @@ const getNumberOfTop = (top: number) =>
     []
   );
 
+const part1Flow = flow(sliceContent, parse2DArrayStrToNum, A.map(sum), maxOfNumArray);
+
+const part2Flow = flow(sliceContent, parse2DArrayStrToNum, A.map(sum), getFirstFewMaxElements(3));
+
 // part 1
 pipe(
   getDataContent('./day-1/data.txt'),
-  TE.map(sliceContent),
-  TE.map(A.map(flow(parseArrayStrToNum, sum))),
-  TE.map(maxOfNumArray),
+  TE.map(part1Flow),
   TE.match(
     (err) => console.log('you got some error', err),
     (res) => console.log('answer is', res)
@@ -65,9 +69,7 @@ pipe(
 // part 2
 pipe(
   getDataContent('./day-1/data.txt'),
-  TE.map(sliceContent),
-  TE.map(A.map(flow(parseArrayStrToNum, sum))),
-  TE.map(flow(getNumberOfTop(3), sum)),
+  TE.map(part2Flow),
   TE.match(
     (err) => console.log('you got some error', err),
     (res) => console.log('answer is', res)
