@@ -28,9 +28,17 @@ const isRock = equals('Rock');
 const isPaper = equals('Paper');
 const isScissors = equals('Scissors');
 
+const rock = always<RPS>('Rock');
+const paper = always<RPS>('Paper');
+const scissors = always<RPS>('Scissors');
+
 const isWin = equals('Win');
 const isLose = equals('Lose');
 const isDraw = equals('Draw');
+
+const win = always<GameStatus>('Win');
+const lose = always<GameStatus>('Lose');
+const draw = always<GameStatus>('Draw');
 
 const getGameScore = cond<[GameStatus], number>([
   [isWin, always(6)],
@@ -44,12 +52,8 @@ const getTypeScore = cond<[RPS], number>([
   [isScissors, always(3)],
 ]);
 
-const getRightPlayerScore = ([left, right]: [RPS, RPS]): number => {
-  const lose = always(getGameScore('Win'));
-  const draw = always(getGameScore('Draw'));
-  const win = always(getGameScore('Lose'));
-
-  return cond([
+const getRightPlayerOutcome = ([left, right]: [RPS, RPS]): GameStatus =>
+  cond([
     [where({ left: isRock, right: isRock }), draw],
     [where({ left: isRock, right: isPaper }), win],
     [where({ left: isRock, right: isScissors }), lose],
@@ -62,28 +66,28 @@ const getRightPlayerScore = ([left, right]: [RPS, RPS]): number => {
     [where({ left: isScissors, right: isPaper }), lose],
     [where({ left: isScissors, right: isScissors }), draw],
   ])({ left, right });
-};
 
-const getPlayerRPS = (rps: RPS, res: GameStatus): RPS => {
-  return cond<[{ rps: RPS; res: GameStatus }], RPS>([
-    [where({ rps: isRock, res: isWin }), always('Paper')],
-    [where({ rps: isRock, res: isLose }), always('Scissors')],
-    [where({ rps: isRock, res: isDraw }), always('Rock')],
+const getPlayerRPS = (rps: RPS, res: GameStatus): RPS =>
+  cond<[{ rps: RPS; res: GameStatus }], RPS>([
+    [where({ rps: isRock, res: isWin }), paper],
+    [where({ rps: isRock, res: isLose }), scissors],
+    [where({ rps: isRock, res: isDraw }), rock],
 
-    [where({ rps: isPaper, res: isWin }), always('Scissors')],
-    [where({ rps: isPaper, res: isLose }), always('Rock')],
-    [where({ rps: isPaper, res: isDraw }), always('Paper')],
+    [where({ rps: isPaper, res: isWin }), scissors],
+    [where({ rps: isPaper, res: isLose }), rock],
+    [where({ rps: isPaper, res: isDraw }), paper],
 
-    [where({ rps: isScissors, res: isWin }), always('Rock')],
-    [where({ rps: isScissors, res: isLose }), always('Paper')],
-    [where({ rps: isScissors, res: isDraw }), always('Scissors')],
+    [where({ rps: isScissors, res: isWin }), rock],
+    [where({ rps: isScissors, res: isLose }), paper],
+    [where({ rps: isScissors, res: isDraw }), scissors],
   ])({ rps, res });
-};
 
 const part1Flow = flow(
   sliceContent,
   A.map(([left, right]) => [formatRPS(left), formatRPS(right)]),
-  A.map(([left, right]) => getRightPlayerScore([left, right]) + getTypeScore(right)),
+  A.map(
+    ([left, right]) => getGameScore(getRightPlayerOutcome([left, right])) + getTypeScore(right)
+  ),
   sum
 );
 
