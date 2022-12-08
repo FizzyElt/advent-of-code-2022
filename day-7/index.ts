@@ -4,17 +4,30 @@ import * as TE from 'fp-ts/TaskEither';
 import type { Option } from 'fp-ts/Option';
 import { pipe, flow } from 'fp-ts/function';
 
-import { split, isNil, trim, startsWith, cond, equals, always, T, prop } from 'ramda';
+import {
+  split,
+  values,
+  reduce,
+  isNil,
+  trim,
+  startsWith,
+  cond,
+  equals,
+  always,
+  T,
+  prop,
+  sum,
+} from 'ramda';
 
 import { getDataContent } from '../utils/readFileTask';
 
 class Dir {
   name: string;
-  parent: Dir | null;
+  parent: Option<Dir>;
   size: number;
   list: Record<string, Dir | File>;
 
-  constructor(name: string, parent: Dir | null) {
+  constructor(name: string, parent: Option<Dir>) {
     this.name = name;
     this.parent = parent;
     this.list = {};
@@ -32,22 +45,23 @@ class Dir {
   }
 }
 
-const createDir = (name: string, parent: Dir | null) => new Dir(name, parent);
+const createDir = (name: string, parent: Option<Dir>) => new Dir(name, parent);
 
 const isDir = (item: Dir | File) => item instanceof Dir;
 
 class File {
   name: string;
-  parent: Dir | null;
+  parent: Option<Dir>;
   size: number;
-  constructor(name: string, parent: Dir | null, size: number) {
+  constructor(name: string, parent: Option<Dir>, size: number) {
     this.name = name;
     this.parent = parent;
     this.size = size;
   }
 }
 
-const createFile = (name: string, parent: Dir | null, size: number) => new File(name, parent, size);
+const createFile = (name: string, parent: Option<Dir>, size: number) =>
+  new File(name, parent, size);
 
 const isFile = (item: Dir | File) => item instanceof File;
 
@@ -60,33 +74,36 @@ const gotoDir = (path: string) => (currentDir: Dir) =>
       T,
       (path: string) => {
         const target = prop(path, currentDir.list);
-        if (isDir(target)) return target as Dir;
-        const newDir = createDir(path, currentDir);
+        if (isDir(target)) return O.some(target as Dir);
+
+        const newDir = createDir(path, O.some(currentDir));
         currentDir.addItem(newDir);
-        return newDir;
+        return O.some(newDir);
       },
     ],
   ])(path);
 
 const buildFilesTree = (init: Dir) => (lines: string[]) => {
-  A.reduce<string, Dir | null>(init, (currentDir, line) => {
+  A.reduce<string, Option<Dir>>(O.some(init), (currentDir, line) => {
     if (isCommand(line)) {
       const [, command = '', path = ''] = split(' ', line);
-      return equals(command, 'cd') && !isNil(currentDir) ? gotoDir(path)(currentDir) : currentDir;
+      const gotoTargetDir = gotoDir(path);
+      return equals(command, 'cd') ? pipe(currentDir, O.chain(gotoTargetDir)) : currentDir;
     }
 
     const [head, name] = split(' ', line);
 
     if (currentDir) {
-      const fileOrDir = equals(head, 'dir')
-        ? createDir(name, currentDir)
-        : createFile(name, currentDir, parseInt(head));
-      currentDir.addItem(fileOrDir);
-
-      return currentDir;
     }
 
-    return currentDir;
+    const fileOrDir = equals(head, 'dir')
+      ? createDir(name, currentDir)
+      : createFile(name, currentDir, parseInt(head));
+
+    return pipe(
+      currentDir,
+      O.map((dir) => dir.addItem(fileOrDir))
+    );
   })(lines);
   return init;
 };
@@ -98,10 +115,8 @@ const setAllDirSize = (root: Dir | File): Dir | File => {
     }
 
     const dir = root as Dir;
-    const totalSize = Object.values(dir.list).reduce(
-      (total, dirOrFile) => total + setSize(dirOrFile),
-      0
-    );
+    const totalSize = pipe(dir.list, values, A.map(setSize), sum);
+
     dir.setSize(totalSize);
     return totalSize;
   }
@@ -110,57 +125,57 @@ const setAllDirSize = (root: Dir | File): Dir | File => {
 };
 
 const sumOfTotalSizeDir = (root: Dir | File, max: number): number => {
-  let sum = 0;
-  function trace(root: Dir | File, max: number): number {
-    if (isFile(root)) {
-      const file = root as File;
-      return file.size;
-    }
-    const dir = root as Dir;
-    const dirTotalSize = Object.values(dir.list).reduce<number>((acc, dirOrFile) => {
-      return acc + trace(dirOrFile, max);
-    }, 0);
-    dirTotalSize < max && (sum += dirTotalSize);
-    return dirTotalSize;
-  }
-  trace(root, max);
-  return sum;
-};
-
-const findMinReleaseDir = (root: Dir | File, releaseSize: number): Option<Dir | File> => {
-  if (isFile(root)) {
-    return O.none;
-  }
+  if (isFile(root)) return 0;
 
   const dir = root as Dir;
 
-  const subDir = Object.values(dir.list)
-    .map((item) => findMinReleaseDir(item, releaseSize))
-    .reduce((acc, dirOption) => {
+  const sumOfSubDirSize = pipe(
+    dir.list,
+    values,
+    A.map((item) => sumOfTotalSizeDir(item, max)),
+    sum
+  );
+
+  return dir.size < max ? sumOfSubDirSize + dir.size : sumOfSubDirSize;
+};
+
+const findMinReleaseDir = (root: Dir | File, releaseSize: number): Option<Dir> => {
+  if (isFile(root)) O.none;
+
+  const dir = root as Dir;
+
+  const subDir = pipe(
+    dir.list,
+    values,
+    A.map((item) => findMinReleaseDir(item, releaseSize)),
+    reduce<Option<Dir>, Option<Dir>>((acc, dirOption) => {
       if (O.isSome(dirOption) && O.isSome(acc)) {
         const dirSize = dirOption.value.size;
         const accSize = acc.value.size;
         return dirSize < accSize ? dirOption : acc;
       }
 
-      if (O.isSome(dirOption)) {
-        return dirOption;
-      }
-      return acc;
-    }, O.none);
+      return pipe(
+        dirOption,
+        O.alt(() => acc)
+      );
+    }, O.none)
+  );
 
-  if (O.isSome(subDir)) {
-    return subDir;
-  }
-
-  return dir.size >= releaseSize ? O.some(dir) : O.none;
+  return pipe(
+    subDir,
+    O.alt(() => (dir.size >= releaseSize ? O.some(dir) : O.none))
+  );
 };
 
-const tree = createDir('root', null);
+const tree = createDir('root', O.none);
 
-const part1Flow = flow(trim, split('\n'), buildFilesTree(tree), (root) =>
-  sumOfTotalSizeDir(root.list['/'], 100000)
-);
+const part1Flow = flow(trim, split('\n'), buildFilesTree(tree), setAllDirSize, (root) => {
+  if (isFile(root)) return 0;
+
+  const dir = root as Dir;
+  return sumOfTotalSizeDir(dir.list['/'], 100000);
+});
 
 const part2Flow = flow(
   trim,
@@ -183,7 +198,7 @@ pipe(
   TE.map(part1Flow),
   TE.match(
     (err) => console.log('you got some error', err),
-    (res) => console.log('answer is', res)
+    (res) => console.log('part 1 answer is', res)
   )
 )();
 
@@ -192,6 +207,6 @@ pipe(
   TE.map(part2Flow),
   TE.match(
     (err) => console.log('you got some error', err),
-    (res) => console.log('answer is', res)
+    (res) => console.log('part 2 answer is', res)
   )
 )();
