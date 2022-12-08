@@ -15,3 +15,4 @@ Try to use functional programming to solve the problems
 - [day 5](./day-5/index.ts)
 - [day 6](./day-6/index.ts)
 - [day 7](./day-7/index.ts)
+- [day 8](./day-8/index.ts)
