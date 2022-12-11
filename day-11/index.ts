@@ -1,8 +1,7 @@
-import * as TE from 'fp-ts/TaskEither';
 import * as A from 'fp-ts/Array';
-import { pipe, flow } from 'fp-ts/function';
+import { pipe } from 'fp-ts/function';
 
-import { assoc, identity, tap, times, prop, sort, take, reduce, multiply } from 'ramda';
+import { identity, tap, times, prop, sort, take, reduce, multiply } from 'ramda';
 
 type Monkey = {
   items: number[];

@@ -8,8 +8,6 @@ import {
   reduce,
   equals,
   cond,
-  gte,
-  T,
   always,
   sum,
   assoc,
@@ -19,7 +17,6 @@ import {
   modify,
   inc,
   add,
-  mergeRight,
 } from 'ramda';
 
 import { getDataContent } from '../utils/readFileTask';
