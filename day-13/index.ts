@@ -1,15 +1,17 @@
+import * as TE from 'fp-ts/TaskEither';
 import * as A from 'fp-ts/Array';
 import { pipe, flow } from 'fp-ts/function';
-import { test } from './test';
-import { data } from './hardcode-data';
 
-import { is, isNil, sort, tap, reduce } from 'ramda';
+import { is, isNil, sort, reduce, trim, split, prop } from 'ramda';
+import { getDataContent } from '../utils/readFileTask';
 
 type RecursionArray = Array<RecursionArray> | number;
 
 type CompareResult = 'left' | 'equal' | 'right';
 
 const isNumber = is(Number);
+
+const sliceContent = flow(trim, split('\n\n'), A.chain(split('\n')));
 
 function compare(left: RecursionArray, right: RecursionArray): CompareResult {
   if (isNumber(left) && isNumber(right)) {
@@ -37,8 +39,9 @@ function compare(left: RecursionArray, right: RecursionArray): CompareResult {
   return 'equal';
 }
 
-pipe(
-  data as Array<RecursionArray>,
+const part1Flow = flow(
+  sliceContent,
+  A.map(JSON.parse),
   A.chunksOf(2) as (arr: Array<RecursionArray>) => Array<[RecursionArray, RecursionArray]>,
   reduce<[RecursionArray, RecursionArray], { sum: number; index: number }>(
     (acc, pair) => {
@@ -53,11 +56,12 @@ pipe(
       index: 0,
     }
   ),
-  tap((res) => console.log(res.sum))
+  prop('sum')
 );
 
-pipe(
-  data as Array<RecursionArray>,
+const part2Flow = flow(
+  sliceContent,
+  A.map(JSON.parse) as (arr: string[]) => Array<RecursionArray>,
   sort((a, b) => {
     const res = compare(a, b);
     if (res === 'equal') return 0;
@@ -68,8 +72,23 @@ pipe(
     const insertPacketIndex = sortedPackets.findIndex((arr) => compare([[2]], arr) === 'right');
     const insertPacketIndex2 = sortedPackets.findIndex((arr) => compare([[6]], arr) === 'right');
     return (insertPacketIndex + 1) * (insertPacketIndex2 + 2);
-  },
-  tap((res) => console.log(res))
+  }
 );
 
-console.log();
+pipe(
+  getDataContent('./day-13/data.txt'),
+  TE.map(part1Flow),
+  TE.match(
+    (err) => console.log('you got some error', err),
+    (res) => console.log('part 1 answer is', res)
+  )
+)();
+
+pipe(
+  getDataContent('./day-13/data.txt'),
+  TE.map(part2Flow),
+  TE.match(
+    (err) => console.log('you got some error', err),
+    (res) => console.log('part 2 answer is', res)
+  )
+)();
