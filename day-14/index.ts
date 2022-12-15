@@ -2,7 +2,7 @@ import * as TE from 'fp-ts/TaskEither';
 import * as A from 'fp-ts/Array';
 import { pipe, flow } from 'fp-ts/function';
 
-import { split, trim, times, range, join } from 'ramda';
+import { split, trim, times, range, join, prop, identity } from 'ramda';
 
 import { getDataContent } from '../utils/readFileTask';
 
@@ -22,7 +22,11 @@ const createMap = (params: { maxCol: number; minCol: number; maxRow: number }): 
   }, maxRow + 1);
 };
 
-const drawStones = (params: { minCol: number; map: string[][]; data: Position[][] }) => {
+const drawStones = (params: {
+  minCol: number;
+  map: string[][];
+  data: Position[][];
+}): string[][] => {
   const { map, data, minCol } = params;
 
   data.forEach((lines) => {
@@ -44,6 +48,51 @@ const drawStones = (params: { minCol: number; map: string[][]; data: Position[][
     }, null);
   });
   return map;
+};
+
+const simulateSandMove = (params: {
+  startPosition: Position;
+  map: string[][];
+  minCol: number;
+}): {
+  isFull: boolean;
+  map: string[][];
+} => {
+  const { map, minCol, startPosition } = params;
+  const bottom = map.length;
+  let [x, y] = startPosition;
+  x -= minCol;
+
+  while (y + 1 < bottom) {
+    const [left, mid, right] = [map[y + 1][x - 1], map[y + 1][x], map[y + 1][x + 1]];
+
+    if (mid === '.') {
+      y += 1;
+      continue;
+    }
+
+    if (left === '.') {
+      x -= 1;
+      y += 1;
+      continue;
+    }
+
+    if (right === '.') {
+      x += 1;
+      y += 1;
+      continue;
+    }
+
+    map[y][x] = 'O';
+    return {
+      isFull: false,
+      map,
+    };
+  }
+  return {
+    isFull: true,
+    map,
+  };
 };
 
 const part1Flow = flow(
@@ -70,7 +119,26 @@ const part1Flow = flow(
       data,
     };
   },
-  drawStones,
+  (params) => {
+    const map = drawStones(params);
+    const result = times(identity, 20).reduce(
+      (acc) => {
+        const res = simulateSandMove(acc);
+
+        return {
+          ...acc,
+          map: res.map,
+        };
+      },
+      {
+        map,
+        startPosition: [500, 0] as Position,
+        minCol: params.minCol,
+      }
+    );
+    return result;
+  },
+  prop('map'),
   A.map(join('')),
   join('\n')
 );
