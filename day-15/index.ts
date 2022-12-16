@@ -45,30 +45,27 @@ const findXRange = (data: Array<{ sensor: Position; beacon: Position; scope: num
   );
 };
 
-const getOverlapCount = (params: {
+const getMergedRange = (params: {
   data: Array<{ sensor: Position; beacon: Position; scope: number }>;
-  range: { minX: number; maxX: number };
   y: number;
 }) => {
   const { data, y } = params;
+  return data
+    .reduce<Array<{ start: number; end: number }>>((acc, item) => {
+      const { sensor, scope } = item;
+      const [sensorX, sensorY] = sensor;
 
-  const coverRanges = data.reduce<Array<{ start: number; end: number }>>((acc, item) => {
-    const { sensor, scope } = item;
-    const [sensorX, sensorY] = sensor;
+      const distance = Math.abs(y - sensorY);
 
-    const distance = Math.abs(y - sensorY);
-
-    if (distance <= scope) {
-      const range = {
-        start: sensorX - (scope - distance),
-        end: sensorX + (scope - distance),
-      };
-      acc.push(range);
-    }
-    return acc;
-  }, []);
-
-  const mergeRanges = coverRanges
+      if (distance <= scope) {
+        const range = {
+          start: sensorX - (scope - distance),
+          end: sensorX + (scope - distance),
+        };
+        acc.push(range);
+      }
+      return acc;
+    }, [])
     .sort((a, b) => a.start - b.start)
     .reduce<Array<{ start: number; end: number }>>((acc, range) => {
       const prevRange = acc.pop();
@@ -77,16 +74,26 @@ const getOverlapCount = (params: {
         return acc;
       }
 
-      if (range.start <= prevRange.end) {
+      if (prevRange.end >= range.start - 1) {
         acc.push({
           start: Math.min(range.start, prevRange.start),
           end: Math.max(range.end, prevRange.end),
         });
         return acc;
       }
-      acc.push(range);
+      acc.push(prevRange, range);
       return acc;
     }, []);
+};
+
+const getOverlapCount = (params: {
+  data: Array<{ sensor: Position; beacon: Position; scope: number }>;
+  range: { minX: number; maxX: number };
+  y: number;
+}) => {
+  const { data, y } = params;
+
+  const mergeRanges = getMergedRange({ data, y });
 
   return (
     mergeRanges.reduce((acc, range) => acc + (range.end - range.start + 1), 0) -
@@ -104,8 +111,30 @@ const part1Flow = flow(A.map(calcSensorRange), filter(isScopedCoverInY(2000000))
   return getOverlapCount({ data, range, y: 2000000 });
 });
 
+const scanIsolatePosition = (
+  data: Array<{ sensor: Position; beacon: Position; scope: number }>
+) => {
+  const M = 4000000;
+
+  for (let i = 1; i <= M; i++) {
+    const mergeRanges = getMergedRange({ data, y: i });
+
+    let x = 0;
+    for (const range of mergeRanges) {
+      if (x < range.start) {
+        return x * M + i;
+      }
+      x = Math.max(x, range.end + 1);
+      if (x > M) break;
+    }
+  }
+  return 0;
+};
+
+const part2Flow = flow(A.map(calcSensorRange), scanIsolatePosition);
+
 pipe(
   data,
-  part1Flow,
+  part2Flow,
   tap((data) => console.log(data))
 );
